@@ -1,0 +1,44 @@
+<div class="container">
+  <div class="heading">
+    <h1>2048</h1>
+    <div class="scores">
+      <div class="score">
+        <div class="name">BEST SCORE</div>
+        <div class="value">{{state.bestScore|round}}</div>
+      </div>
+      <div class="score">
+        <div class="name">SCORE</div>
+        <div class="value">{{state.score|round}}</div>
+      </div>
+    </div>
+  </div>
+  <div class="menus">
+    <button @click="restart">restart</button>
+    <button @click="undo" :disabled="stack.length<2">undo({{stack.length-1}})</button>
+  </div>
+  <div class="grid" ref="grid">
+    <template v-for="y of game.size[1]">
+      <tile v-for="x of game.size[0]" :data="{x:x-1,y:y-1}" :key="x+':'+y" :game="game"/>
+    </template>
+    <tile v-for="item of tiles" :data="item" :game="game" :key="item.id"/>
+    <div v-if="(state.win&&!state.keepGoing)||state.gameover" class="message" :class="state">
+      <div v-if="state.win" class="text">
+        You win!
+      </div>
+      <div v-else-if="state.gameover" class="text">
+        Game over!
+      </div>
+      <div class="btns">
+        <button @click="restart">Try again</button>
+        <button v-if="state.win" @click="keepGoing">Keep going</button>
+      </div>
+    </div>
+  </div>
+  <div class="btns">
+    <button @click="move('↑')">↑</button>
+    <button @click="move('↓')">↓</button>
+    <button @click="move('←')">←</button>
+    <button @click="move('→')">→</button>
+  </div>
+
+</div>
