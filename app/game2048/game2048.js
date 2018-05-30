@@ -5,7 +5,7 @@ export default {
   name: 'game2048',
   data () {
     return {
-      game: {size: [4, 4], tileSize: 100, maxStack: 5},
+      game: {size: [4, 4], maxStack: 5},
       state: null,
       tiles: null,
       tileMap: null,
@@ -48,60 +48,12 @@ export default {
         }
       })
     },
+    key (x, y) { return `${x}:${y}` },
     restart () {
       this.reset()
       this.generate()
     },
     keepGoing () { this.state.keepGoing = true },
-    saveImmediate () {
-      window.localStorage.stack = JSON.stringify(this.stack)
-      window.localStorage.bestScore = this.state.bestScore
-    },
-    save: _.throttle(function () { this.saveImmediate() }, 2000, {trailing: false}),
-    restore () {
-      this.reset()
-      let stack = JSON.parse(window.localStorage.stack || 'null')
-      if (!stack) return
-      let [state, tiles] = _.last(stack)
-      this.tileMap = _.keyBy(tiles, ({x, y}) => this.key(x, y))
-      this.stack = stack
-      Object.assign(this, {tiles, state})
-    },
-    onKeyDown (evt) {
-      let keyCode = {38: '↑', 40: '↓', 37: '←', 39: '→'}
-      let direction = keyCode[evt.keyCode]
-      if (!direction) return
-      this.move(direction)
-      evt.preventDefault()
-    },
-    remember () {
-      if (!this.tiles.length) return
-      this.stack.push([Object.assign({}, this.state), _.map(this.tileMap, x => x && Object.assign({}, x))])
-      if (this.stack.length - 1 > this.game.maxStack) this.stack.shift()
-      this.gameEnd ? this.saveImmediate() : this.save()
-    },
-    undo () {
-      if (this.stack.length < 2) return
-      this.stack.pop()
-      let [state, tiles] = _.last(this.stack)
-      let lastTiles = tiles.map(x => Object.assign({}, x))
-      this.tileMap = _.keyBy(lastTiles, ({x, y}) => this.key(x, y))
-      Object.assign(this, {state: Object.assign({}, state), tiles: lastTiles})
-      this.save()
-    },
-    key (x, y) { return `${x}:${y}` },
-    gameoverCheck () {
-      let [width, height] = this.game.size
-      for (let x = 0; x < width; x++) {
-        for (let y = 0; y < height; y++) {
-          let tile = _.get(this.tileMap, [this.key(x, y), 'value'])
-          let right = _.get(this.tileMap, [this.key(x + 1, y), 'value'])
-          let down = _.get(this.tileMap, [this.key(x, y + 1), 'value'])
-          if (tile === right || tile === down) return
-        }
-      }
-      this.state.gameover = true
-    },
     increaseScore (value, combo) {
       this.state.score += combo > 1 ? value * (Math.pow(combo, 1.4) / 2) : value
       if (this.state.score > this.state.bestScore) this.state.bestScore = this.state.score
@@ -119,18 +71,10 @@ export default {
         }
       }
     },
-    * moveUp (tileX, tileY) {
-      for (let y = tileY - 1; y >= 0; y--) yield [tileX, y]
-    },
-    * moveDown (tileX, tileY) {
-      for (let y = tileY + 1; y < this.game.size[1]; y++) yield [tileX, y]
-    },
-    * moveLeft (tileX, tileY) {
-      for (let x = tileX - 1; x >= 0; x--) yield [x, tileY]
-    },
-    * moveRight (tileX, tileY) {
-      for (let x = tileX + 1; x < this.game.size[0]; x++) yield [x, tileY]
-    },
+    * moveUp (tileX, tileY) { for (let y = tileY - 1; y >= 0; y--) yield [tileX, y] },
+    * moveDown (tileX, tileY) { for (let y = tileY + 1; y < this.game.size[1]; y++) yield [tileX, y] },
+    * moveLeft (tileX, tileY) { for (let x = tileX - 1; x >= 0; x--) yield [x, tileY] },
+    * moveRight (tileX, tileY) { for (let x = tileX + 1; x < this.game.size[0]; x++) yield [x, tileY] },
     move (direction) {
       if (this.gameEnd) return
       let directions = {
@@ -141,49 +85,100 @@ export default {
       }
       let [iterator, ...orderBy] = directions[direction]
 
-      let moved = false
-      let [toRemove, combines, combined] = [[], [], {}]
-      let combine = (to, tile) => {
-        if (to.value !== tile.value) return
+      let [toRemove, comboRecord, combined] = [[], [], {}]
+      let tryCombine = (to, tile) => {
+        if (combined[to.id] || to.value !== tile.value) return
         combined[to.id] = combined[tile.id] = true
         to.value += tile.value
         let combo = Math.max(to.combo, tile.combo) + 1
-        combines.push([to, combo])
+        comboRecord.push([to, combo])
+        this.increaseScore(to.value, combo)
         Object.assign(tile, {x: to.x, y: to.y})
         if (to.value === 2048) this.state.win = true
       }
-      _(this.tiles).filter(({x, y}) => this.tileMap[this.key(x, y)]).orderBy(...orderBy).forEach(tile => {
-        let movedKey = null
-        let key = this.key(tile.x, tile.y)
-        for (let [x, y] of iterator(tile.x, tile.y)) {
-          let toKey = this.key(x, y)
-          let to = this.tileMap[toKey]
-          if (to) {
-            if (!combined[to.id]) combine(to, tile)
-            break
-          } else {
-            movedKey = toKey
-            Object.assign(tile, {x, y})
+      let moved = false
+      _(this.tiles)
+        .filter(({x, y}) => this.tileMap[this.key(x, y)])
+        .orderBy(...orderBy)
+        .forEach(tile => {
+          let movedKey = null
+          let key = this.key(tile.x, tile.y)
+          for (let [x, y] of iterator(tile.x, tile.y)) {
+            let toKey = this.key(x, y)
+            let to = this.tileMap[toKey]
+            if (to) {
+              tryCombine(to, tile)
+              break
+            } else {
+              movedKey = toKey
+              Object.assign(tile, {x, y})
+            }
           }
-        }
-        let tileMoved = combined[tile.id] || movedKey
-        if (tileMoved) delete this.tileMap[key]
-        if (combined[tile.id]) toRemove.push(tile)
-        else if (movedKey) this.tileMap[movedKey] = tile
-        moved = moved || tileMoved
+          let tileMoved = combined[tile.id] || movedKey
+          if (!tileMoved) return
+          delete this.tileMap[key]
+          moved = true
+          if (combined[tile.id]) toRemove.push(tile)
+          else if (movedKey) this.tileMap[movedKey] = tile
+        })
+      if (!moved) return
+      this.tiles.forEach(tile => { tile.combo = 0 })
+      comboRecord.forEach(([tile, combo]) => { tile.combo = combo })
+      this.$nextTick(() => {
+        _.pullAll(this.tiles, toRemove)
+        this.generate()
       })
-      if (moved) {
-        this.tiles.forEach(x => { x.combo = 0 })
-        combines.forEach(([tile, combo]) => {
-          this.increaseScore(tile.value, combo)
-          tile.combo = combo
-        })
-        this.$nextTick(() => {
-          _.pullAll(this.tiles, toRemove)
-          this.generate()
-        })
+    },
+    gameoverCheck () {
+      let [width, height] = this.game.size
+      for (let x = 0; x < width; x++) {
+        for (let y = 0; y < height; y++) {
+          let tile = _.get(this.tileMap, [this.key(x, y), 'value'])
+          let right = _.get(this.tileMap, [this.key(x + 1, y), 'value'])
+          let down = _.get(this.tileMap, [this.key(x, y + 1), 'value'])
+          if (tile === right || tile === down) return
+        }
       }
-    }
+      this.state.gameover = true
+    },
+    saveImmediate () {
+      window.localStorage.stack = JSON.stringify(this.stack)
+      window.localStorage.bestScore = this.state.bestScore
+    },
+    save: _.throttle(function () { this.saveImmediate() }, 2000, {trailing: false}),
+    restore () {
+      this.reset()
+      let stack = JSON.parse(window.localStorage.stack || 'null')
+      if (!stack) return
+      let [state, tiles] = _.last(stack)
+      let tileMap = _.keyBy(tiles, ({x, y}) => this.key(x, y))
+      Object.assign(this, {tiles, tileMap, state, stack})
+    },
+    undo () {
+      if (this.stack.length < 2) return
+      this.stack.pop()
+      let [lastState, lastTiles] = _.last(this.stack)
+      let tiles = lastTiles.map(x => Object.assign({}, x))
+      let tileMap = _.keyBy(tiles, ({x, y}) => this.key(x, y))
+      let state = Object.assign({}, lastState)
+      Object.assign(this, {tiles, tileMap, state})
+      this.save()
+    },
+    remember () {
+      if (!this.tiles.length) return
+      let state = Object.assign({}, this.state)
+      let tiles = this.tiles.map(x => Object.assign({}, x))
+      this.stack.push([state, tiles])
+      if (this.stack.length - 1 > this.game.maxStack) this.stack.shift()
+      this.gameEnd ? this.saveImmediate() : this.save()
+    },
+    onKeyDown (evt) {
+      let keyCode = {38: '↑', 40: '↓', 37: '←', 39: '→'}
+      let direction = keyCode[evt.keyCode]
+      if (!direction) return
+      this.move(direction)
+      evt.preventDefault()
+    },
   },
   detroyed () { document.removeEventListener('keydown', this.onKeyDown) },
   components: {tile},
