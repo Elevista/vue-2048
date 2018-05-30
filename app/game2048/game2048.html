@@ -13,31 +13,39 @@
     </div>
   </div>
   <div class="menus">
-    <button @click="restart">restart</button>
-    <button @click="undo" :disabled="stack.length<2">undo({{stack.length-1}})</button>
-  </div>
-  <div class="grid" ref="grid">
-    <template v-for="y of game.size[1]">
-      <tile v-for="x of game.size[0]" :data="{x:x-1,y:y-1}" :key="x+':'+y" :game="game"/>
+    <template v-for="i of 2">
+      <button v-if="i%2" @click="restart">restart</button>
+      <button v-else @click="undo" :disabled="stack.length<2">undo({{stack.length-1}})</button>
     </template>
-    <tile v-for="item of tiles" :data="item" :game="game" :key="item.id"/>
-    <div v-if="(state.win&&!state.keepGoing)||state.gameover" class="message" :class="state">
-      <div v-if="state.win" class="text">
-        You win!
-      </div>
-      <div v-else-if="state.gameover" class="text">
-        Game over!
-      </div>
-      <div class="btns">
-        <button @click="restart">Try again</button>
-        <button v-if="state.win" @click="keepGoing">Keep going</button>
+  </div>
+  <div class="mid">
+    <div class="grid" ref="grid">
+      <span>
+        <template v-for="y of game.size[1]">
+          <tile v-for="x of game.size[0]" :data="{x:x-1,y:y-1}" :key="x+':'+y" :game="game"/>
+        </template>
+      </span>
+      <transition-group>
+        <tile v-for="item of tiles" :data="item" :game="game" :key="item.id"/>
+      </transition-group>
+      <div v-if="(state.win&&!state.keepGoing)||state.gameover" class="message" :class="state">
+        <div v-if="state.win" class="text">
+          You win!
+        </div>
+        <div v-else-if="state.gameover" class="text">
+          Game over!
+        </div>
+        <div class="btns">
+          <button @click="restart">Try again</button>
+          <button v-if="state.win" @click="keepGoing">Keep going</button>
+        </div>
       </div>
     </div>
   </div>
   <div class="btns">
+    <button @click="move('←')">←</button>
     <button @click="move('↑')">↑</button>
     <button @click="move('↓')">↓</button>
-    <button @click="move('←')">←</button>
     <button @click="move('→')">→</button>
   </div>
 

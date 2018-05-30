@@ -1,12 +1,14 @@
 <template>
-  <div v-if="data.id" class="tile" :class="[tileClass,{pulse}]" :style="style">
-    <transition appear name="appear">
-      <div class="inner">{{data.value}}</div>
-    </transition>
-    <transition name="combo">
-      <div class="combo" v-if="combo">{{data.combo}} combo!</div>
-    </transition>
-  </div>
+  <span v-if="data.id" class="wrap">
+    <div class="tile" :class="[tileClass,{pulse}]" :style="style">
+      <transition appear name="appear">
+        <div class="inner">{{data.value}}</div>
+      </transition>
+      <transition name="combo">
+        <div class="combo" v-if="combo">{{data.combo}} combo!</div>
+      </transition>
+    </div>
+  </span>
   <div v-else class="tile grid-tile" :style="style">
     <div class="inner"></div>
   </div>
@@ -22,8 +24,8 @@
         if (this.pulse) this.pulse = false
         this.$nextTick(() => { this.pulse = true })
       },
-      'data.combo' (v) {
-        if (v < 2) return
+      'data.combo' (v, o) {
+        if (v < 2 || v < o) return
         if (!this.combo) this.combo = true
         this.$nextTick(() => { this.combo = false })
       }
@@ -35,22 +37,21 @@
       },
       style () {
         let {x, y} = this.data
-        let {size: [width, height], tileTransDuration} = this.game
+        let {size: [width, height]} = this.game
         let ret = {
           transform: `translate3d(${x * 100}%,${y * 100}%,0)`,
           width: 100 / width + '%',
           height: 100 / height + '%'
         }
-        return this.data.id ? Object.assign(ret, {
-          zIndex: this.data.value,
-          transitionDuration: tileTransDuration + 'ms'
-        }) : ret
+        return this.data.id ? Object.assign(ret, {zIndex: this.data.value}) : ret
       }
     }
   }
 </script>
 
 <style scoped>
+  .tile, .wrap {transition-duration: 80ms;}
+  /*.wrap.v-leave-active {opacity: 0}*/
   .tile {
     position: absolute;
     box-sizing: border-box;
@@ -58,21 +59,20 @@
     font-weight: bold;
     padding: 0.4em;
   }
-  .tile.pulse .inner { animation: pulse 0.2s;}
-  .tile.grid-tile {background-color: #bbad9f;}
+  .tile.pulse .inner { animation: pulse 200s;}
   .tile.grid-tile .inner { background-color: #ccc1b4;}
-  .appear-enter-active { animation: zoomIn 100ms; }
+  .tile .inner.appear-enter-active { animation: zoomIn2 160ms; }
   .tile .combo {
     position: absolute;
-    width: calc(100% - 12px);
+    width: calc(100% - 0.8em);
     text-align: center;
-    top: 16px;
-    font-size: 13px;
+    top: 0.6em;
+    font-size: 1em;
     white-space: nowrap;
     color: white;
     animation-fill-mode: forwards;
   }
-  .tile .combo.combo-leave-active { animation: fadeOutUp 1s; }
+  .tile .combo.combo-leave-active { animation: fadeOutUp 1000ms; }
   .tile .inner {
     transition-property: all;
     transition-duration: inherit;
@@ -99,4 +99,9 @@
   .tile.tile-8192 .inner {background: #03A9F4;font-size: 2.5em; }
   .tile.tile-16384 .inner {background: #1E88E5;font-size: 2em; }
   .tile.tile-higher .inner {background: #3F51B5;font-size: 2em; }
+  @keyframes zoomIn2 {
+    0% { opacity: 0; }
+    50% { opacity: 0; transform: scale3d(0.3, 0.3, 0.3); }
+    75% { opacity: 1; }
+  }
 </style>

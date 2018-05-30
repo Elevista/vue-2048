@@ -5,12 +5,12 @@ export default {
   name: 'game2048',
   data () {
     return {
-      game: {size: [4, 4], tileSize: 100, tileTransDuration: 80, maxStack: 5},
+      game: {size: [4, 4], tileSize: 100, maxStack: 5},
       state: null,
       tiles: null,
       tileMap: null,
       stack: null,
-      moveLock: null
+      lock: null
     }
   },
   created () {
@@ -22,21 +22,14 @@ export default {
     let {DIRECTION_LEFT: left, DIRECTION_RIGHT: right, DIRECTION_UP: up, DIRECTION_DOWN: down, DIRECTION_ALL: all} = Hammer
     let directions = {[left]: '←', [up]: '↑', [down]: '↓', [right]: '→'}
     let hm = new Hammer(this.$refs.grid)
-    hm.get('swipe').set({direction: all})
+    hm.get('swipe').set({direction: all, threshold: 5})
     hm.on('swipe', ev => {
       let direction = directions[ev.direction]
       direction && this.move(direction)
     })
   },
   computed: {
-    width () {
-      let {tileSize, size: [width]} = this.game
-      return {width: tileSize * width + 12 + 'px'}
-    },
-    height () {
-      let {tileSize, size: [, height]} = this.game
-      return {height: tileSize * height + 12 + 'px'}
-    }
+    gameEnd () { return (this.state.win && !this.state.keepGoing) || this.state.gameover }
   },
   methods: {
     reset () {
@@ -44,7 +37,7 @@ export default {
         tiles: [],
         tileMap: {},
         stack: [],
-        moveLock: false,
+        lock: false,
         state: {
           win: false,
           gameover: false,
@@ -60,21 +53,21 @@ export default {
       this.generate()
     },
     keepGoing () { this.state.keepGoing = true },
-    save: _.throttle(function () {
+    saveImmediate () {
       window.localStorage.stack = JSON.stringify(this.stack)
       window.localStorage.bestScore = this.state.bestScore
-    }, 2000),
+    },
+    save: _.throttle(function () { this.saveImmediate() }, 2000, {trailing: false}),
     restore () {
       this.reset()
       let stack = JSON.parse(window.localStorage.stack || 'null')
       if (!stack) return
-      let [tiles, state] = _.last(stack)
+      let [state, tiles] = _.last(stack)
       this.tileMap = _.keyBy(tiles, ({x, y}) => this.key(x, y))
       this.stack = stack
       Object.assign(this, {tiles, state})
     },
     onKeyDown (evt) {
-      if (this.moveLock) return
       let keyCode = {38: '↑', 40: '↓', 37: '←', 39: '→'}
       let direction = keyCode[evt.keyCode]
       if (!direction) return
@@ -83,18 +76,17 @@ export default {
     },
     remember () {
       if (!this.tiles.length) return
-      this.stack.push([_.map(this.tileMap, x => x && Object.assign({}, x)), Object.assign({}, this.state)])
+      this.stack.push([Object.assign({}, this.state), _.map(this.tileMap, x => x && Object.assign({}, x))])
       if (this.stack.length - 1 > this.game.maxStack) this.stack.shift()
-      this.save()
+      this.gameEnd ? this.saveImmediate() : this.save()
     },
     undo () {
       if (this.stack.length < 2) return
       this.stack.pop()
-      let [tiles, state] = _.last(this.stack)
+      let [state, tiles] = _.last(this.stack)
       let lastTiles = tiles.map(x => Object.assign({}, x))
       this.tileMap = _.keyBy(lastTiles, ({x, y}) => this.key(x, y))
-      this.tiles = lastTiles
-      Object.assign(this.state, state)
+      Object.assign(this, {state: Object.assign({}, state), tiles: lastTiles})
       this.save()
     },
     key (x, y) { return `${x}:${y}` },
@@ -120,7 +112,7 @@ export default {
         for (let y of _(0).range(height).shuffle().value()) {
           let key = this.key(x, y)
           if (this.tileMap[key]) continue
-          this.tiles.push(this.tileMap[key] = {id: this.state.tileId++, combo: 0, x, y, value: 2, combined: false})
+          this.tiles.push(this.tileMap[key] = {id: this.state.tileId++, combo: 0, x, y, value: 2})
           if (this.tiles.length === width * height) this.gameoverCheck()
           this.remember()
           return
@@ -140,9 +132,7 @@ export default {
       for (let x = tileX + 1; x < this.game.size[0]; x++) yield [x, tileY]
     },
     move (direction) {
-      let {moveLock, win, keepGoing, gameover} = this.state
-      if (moveLock || (win && !keepGoing) || gameover) return
-      this.moveLock = true
+      if (this.gameEnd) return
       let directions = {
         '↑': [this.moveUp, ['x', 'y'], ['asc', 'asc']],
         '↓': [this.moveDown, ['x', 'y'], ['asc', 'desc']],
@@ -152,10 +142,10 @@ export default {
       let [iterator, ...orderBy] = directions[direction]
 
       let moved = false
-      let combines = []
+      let [toRemove, combines, combined] = [[], [], {}]
       let combine = (to, tile) => {
         if (to.value !== tile.value) return
-        to.combined = tile.combined = true
+        combined[to.id] = combined[tile.id] = true
         to.value += tile.value
         let combo = Math.max(to.combo, tile.combo) + 1
         combines.push([to, combo])
@@ -163,23 +153,22 @@ export default {
         if (to.value === 2048) this.state.win = true
       }
       _(this.tiles).filter(({x, y}) => this.tileMap[this.key(x, y)]).orderBy(...orderBy).forEach(tile => {
-        tile.combined = false // combine allow only one time
         let movedKey = null
         let key = this.key(tile.x, tile.y)
         for (let [x, y] of iterator(tile.x, tile.y)) {
           let toKey = this.key(x, y)
           let to = this.tileMap[toKey]
           if (to) {
-            if (!to.combined) combine(to, tile)
+            if (!combined[to.id]) combine(to, tile)
             break
           } else {
             movedKey = toKey
             Object.assign(tile, {x, y})
           }
         }
-        let tileMoved = tile.combined || movedKey
+        let tileMoved = combined[tile.id] || movedKey
         if (tileMoved) delete this.tileMap[key]
-        if (tile.combined) setTimeout(() => { _.pull(this.tiles, tile) }, this.game.tileTransDuration)
+        if (combined[tile.id]) toRemove.push(tile)
         else if (movedKey) this.tileMap[movedKey] = tile
         moved = moved || tileMoved
       })
@@ -189,16 +178,12 @@ export default {
           this.increaseScore(tile.value, combo)
           tile.combo = combo
         })
-        setTimeout(() => {
-          this.moveLock = false
+        this.$nextTick(() => {
+          _.pullAll(this.tiles, toRemove)
           this.generate()
-        }, this.game.tileTransDuration)
-      } else this.moveLock = false
+        })
+      }
     }
-  },
-  watch: {
-    'state.win' () { this.save() },
-    'state.gameover' () { this.save() }
   },
   detroyed () { document.removeEventListener('keydown', this.onKeyDown) },
   components: {tile},

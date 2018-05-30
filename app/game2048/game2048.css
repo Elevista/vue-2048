@@ -3,54 +3,64 @@
   outline: none;
   -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
 }
-.heading h1 { font-size: 70px; margin: 0; display: inline-block;}
-.heading .scores {float: right;}
-.heading .scores .score {
-  padding: 4px 10px;
+.container {
+  color: #776e65;
+  font-family: "Clear Sans", "Helvetica Neue", Arial, sans-serif;
+  font-weight: bold;
+  padding: 0 10px;
+  flex-direction: column;
+  display: flex;
+  flex: 1;
+  max-width: 500px;
+  height: 100%;
+  margin: 0 auto;
+  background-color: #faf8ef;
+}
+.container .heading {margin-top: 4em;}
+.container .heading h1 { font-size: 5.2em; margin: 0; display: inline-block; float:left;}
+.container .heading:after {content:' ';display: block;clear: both;}
+.container .heading .scores {float: right;white-space: nowrap;}
+.container .heading .scores .score {
+  padding: 0.4em 0.4em;
   position: relative;
   display: inline-block;
   background: #bbada0;
   font-weight: bold;
   border-radius: 3px;
   color: white;
-  margin-top: 8px;
+  margin-top: 1.4em;
+  margin-left: 0.5em;
   text-align: center;
 }
-.heading .scores .score .name {font-size: 13px;color: #eee4da;}
-.heading .scores .score .value {font-size: 25px;}
-.message {
-  border-radius: 6px;
-  background: red;
-  position: absolute;
-  margin: -6px;
-  width: calc(100% + 12px);
-  height: calc(100% + 12px);
-  z-index: 99999999;
-  font-size: inherit;
-}
-.container {
-  color: #776e65;
-  font-family: "Clear Sans", "Helvetica Neue", Arial, sans-serif;
-  font-weight: bold;
-  padding: 0 10px;
-}
+.container .heading .scores .score .name {font-size: 1em;color: #eee4da;}
+.container .heading .scores .score .value {font-size: 2.2em;}
 .container > div { width: 100%;margin: 0 auto;}
-.container .grid {
+.container .mid {flex: 1 0 auto;display: flex; align-items: center;justify-content: center;}
+.container .mid .grid {
   border: solid 0.4em #bbad9f;
-  border-radius: 6px;
+  border-radius: 5px;
   box-sizing: border-box;
   position: relative;
   background: #bbad9f;
+
 }
-.message {
+.container .mid .message {
+  border-radius: 5px;
+  background: red;
+  position: absolute;
+  margin: -0.4em;
+  width: calc(100% + 0.8em);
+  height: calc(100% + 0.8em);
+  z-index: 99999999;
+  font-size: inherit;
   background: rgba(238, 228, 218, 0.73);
   text-align: center;
 }
-.message.win {
+.container .mid .message.win {
   background: rgba(237, 194, 46, 0.5);
   color: #f9f6f2;
 }
-.message .text {
+.container .mid .message .text {
   font-size: 48px;
   text-align: center;
   height: 70%;
@@ -58,23 +68,23 @@
   justify-content: center;
   align-items: center;
 }
-.message .bnts {text-align: center;}
+.container .mid .message .bnts {text-align: center;}
 button {
   font-weight: inherit;
   font-size: inherit;
   background: #8f7a66;
   border: none;
   border-radius: 3px;
-  padding: 0 20px;
+  padding: 0 1em;
   text-decoration: none;
   color: #f9f6f2;
-  height: 40px;
-  line-height: 42px;
-  margin-left: 9px;
+  height: 2.5em;
+  line-height: 2.5em;
+  margin-left: 0.5em;
 }
 button:disabled {background: #bbada0;}
-.menus { text-align: right;padding: 10px 0; font-size: 18px;}
-.btns { text-align: center;padding: 10px 0; font-size: 18px;}
+.menus { text-align: right;padding: .8em 0; font-size: 1.5em;white-space: nowrap; }
+.btns { text-align: center;padding: 1.4em 0; font-size: 1.5em;}
 
 .container { font-size: 16px}
 .container .grid {width: 500px;height: 500px;}
