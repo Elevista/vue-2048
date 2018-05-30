@@ -67,6 +67,7 @@ export default {
           this.tiles.push(this.tileMap[key] = {id: this.state.tileId++, combo: 0, x, y, value: 2})
           if (this.tiles.length === width * height) this.gameoverCheck()
           this.remember()
+          this.save()
           return
         }
       }
@@ -141,11 +142,10 @@ export default {
       }
       this.state.gameover = true
     },
-    saveImmediate () {
+    save: _.throttle(function () {
       window.localStorage.stack = JSON.stringify(this.stack)
       window.localStorage.bestScore = this.state.bestScore
-    },
-    save: _.throttle(function () { this.saveImmediate() }, 2000, {trailing: false}),
+    }, 2000),
     restore () {
       this.reset()
       let stack = JSON.parse(window.localStorage.stack || 'null')
@@ -153,6 +153,13 @@ export default {
       let [state, tiles] = _.last(stack)
       let tileMap = _.keyBy(tiles, ({x, y}) => this.key(x, y))
       Object.assign(this, {tiles, tileMap, state, stack})
+    },
+    remember () {
+      if (!this.tiles.length) return
+      let state = Object.assign({}, this.state)
+      let tiles = this.tiles.map(x => Object.assign({}, x))
+      this.stack.push([state, tiles])
+      if (this.stack.length - 1 > this.game.maxStack) this.stack.shift()
     },
     undo () {
       if (this.stack.length < 2) return
@@ -163,14 +170,6 @@ export default {
       let state = Object.assign({}, lastState)
       Object.assign(this, {tiles, tileMap, state})
       this.save()
-    },
-    remember () {
-      if (!this.tiles.length) return
-      let state = Object.assign({}, this.state)
-      let tiles = this.tiles.map(x => Object.assign({}, x))
-      this.stack.push([state, tiles])
-      if (this.stack.length - 1 > this.game.maxStack) this.stack.shift()
-      this.gameEnd ? this.saveImmediate() : this.save()
     },
     onKeyDown (evt) {
       let keyCode = {38: '↑', 40: '↓', 37: '←', 39: '→'}
