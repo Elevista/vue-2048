@@ -28,7 +28,7 @@
       <transition-group>
         <tile v-for="item of tiles" :data="item" :game="game" :key="item.id"/>
       </transition-group>
-      <div v-if="(state.win&&!state.keepGoing)||state.gameover" class="message" :class="state">
+      <div v-if="gameEnd" class="message" :class="state">
         <div v-if="state.win" class="text">
           You win!
         </div>
