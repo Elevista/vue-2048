@@ -15,7 +15,7 @@ export default {
   },
   created () {
     this.reset()
-    window.localStorage.stack ? this.restore() : this.restart()
+    window.localStorage.stack ? this.restore() : this.generate()
   },
   mounted () {
     document.addEventListener('keydown', this.onKeyDown)
@@ -98,30 +98,29 @@ export default {
         if (to.value === 2048) this.state.win = true
       }
       let moved = false
-      _(this.tiles)
-        .filter(({x, y}) => this.tileMap[this.key(x, y)])
-        .orderBy(...orderBy)
-        .forEach(tile => {
-          let movedKey = null
-          let key = this.key(tile.x, tile.y)
-          for (let [x, y] of iterator(tile.x, tile.y)) {
-            let toKey = this.key(x, y)
-            let to = this.tileMap[toKey]
-            if (to) {
-              tryCombine(to, tile)
-              break
-            } else {
-              movedKey = toKey
-              Object.assign(tile, {x, y})
-            }
+      let tryMove = tile => {
+        let movedKey = null
+        let key = this.key(tile.x, tile.y)
+        for (let [x, y] of iterator(tile.x, tile.y)) {
+          let toKey = this.key(x, y)
+          let to = this.tileMap[toKey]
+          if (to) {
+            tryCombine(to, tile)
+            break
+          } else {
+            movedKey = toKey
+            Object.assign(tile, {x, y})
           }
-          let tileMoved = combined[tile.id] || movedKey
-          if (!tileMoved) return
-          delete this.tileMap[key]
-          moved = true
-          if (combined[tile.id]) toRemove.push(tile)
-          else if (movedKey) this.tileMap[movedKey] = tile
-        })
+        }
+        let tileMoved = combined[tile.id] || movedKey
+        if (!tileMoved) return
+        delete this.tileMap[key]
+        moved = true
+        if (combined[tile.id]) toRemove.push(tile)
+        else if (movedKey) this.tileMap[movedKey] = tile
+      }
+      _(this.tiles).filter(({x, y}) => this.tileMap[this.key(x, y)]).orderBy(...orderBy).forEach(tryMove)
+
       if (!moved) return
       this.tiles.forEach(tile => { tile.combo = 0 })
       comboRecord.forEach(([tile, combo]) => { tile.combo = combo })
@@ -177,7 +176,7 @@ export default {
       if (!direction) return
       this.move(direction)
       evt.preventDefault()
-    },
+    }
   },
   detroyed () { document.removeEventListener('keydown', this.onKeyDown) },
   components: {tile},
