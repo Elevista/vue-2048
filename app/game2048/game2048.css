@@ -56,7 +56,7 @@
   background: rgba(238, 228, 218, 0.73);
   text-align: center;
 }
-.container .mid .message.win {
+.container .mid .message.win:not(.gameover) {
   background: rgba(237, 194, 46, 0.5);
   color: #f9f6f2;
 }

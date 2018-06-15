@@ -29,15 +29,15 @@
         <tile v-for="item of tiles" :data="item" :game="game" :key="item.id"/>
       </transition-group>
       <div v-if="gameEnd" class="message" :class="state">
-        <div v-if="state.win" class="text">
-          You win!
-        </div>
-        <div v-else-if="state.gameover" class="text">
+        <div v-if="state.gameover" class="text">
           Game over!
+        </div>
+        <div v-else-if="state.win" class="text">
+          You win!
         </div>
         <div class="btns">
           <button @click="restart">Try again</button>
-          <button v-if="state.win" @click="keepGoing">Keep going</button>
+          <button v-if="state.win&&!state.keepGoing" @click="keepGoing">Keep going</button>
         </div>
       </div>
     </div>
